@@ -8,7 +8,7 @@ A real-time notification system that monitors the Florida Highway Patrol Live Tr
 
 <br>
 <div align="center">
-  <img src="Images/Screenshot%202025-10-07%20234144.png width="400" />
+  <img src="Images/Screenshot%202025-10-07%20234144.png" width="400" />
   <img src="Images/Screenshot%202025-10-08%20024223.png" width="400" />
 </div>
 
