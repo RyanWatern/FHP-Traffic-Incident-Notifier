@@ -29,7 +29,7 @@ sent_incidents, pending_incidents, preloaded, type_change_logged = {}, {}, {}, {
 def get_custom_pin(incident_type):
     t = incident_type.lower()
     if "disabled patrol" in t: return "Disabled_patrol"
-    elif "roadway closed" in t: return "Roadblock"
+    elif "road closed due to" in t: return "Roadblock"
     elif "traffic light out" in t: return "Traffic_light"
     elif "fatality" in t: return "Crash_Fatality"
     elif "suicide" in t: return "Caution_Fatality"
@@ -48,7 +48,7 @@ def get_custom_pin(incident_type):
     elif "disabled" in t: return "Disabled"
     elif "boat" in t: return "Boat"
     elif "travel advisory" in t: return "Bell"
-    elif "crash" in t or "possible fatailty" in t: return "Crash"
+    elif "crash" in t or "possible fatality" in t: return "Crash"
     elif "cone" in t: return "Cone"
     else: return "Caution"
 
