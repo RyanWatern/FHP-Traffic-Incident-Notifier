@@ -31,11 +31,13 @@ def get_custom_pin(incident_type):
     if "disabled patrol" in t: return "Disabled_patrol"
     elif "road closed due to" in t: return "Roadblock"
     elif "traffic light out" in t: return "Traffic_light"
+    elif "possible fatality" in t: return "Crash"
     elif "fatality" in t: return "Crash_Fatality"
     elif "suicide" in t: return "Caution_Fatality"
     elif "purple" in t: return "Purple_alert"
     elif "silver" in t: return "Silver_alert"
     elif "missing person" in t or "amber alert" in t: return "Alert"
+    elif "stolen vehicle" in t: return "Criminal"
     elif "aircraft crash - water" in t: return "Aircraft_water"
     elif "aircraft crash - land" in t or "aircraft crash" in t: return "Aircraft_land"
     elif "fire - boat" in t: return "Boat_fire"
@@ -48,7 +50,7 @@ def get_custom_pin(incident_type):
     elif "disabled" in t: return "Disabled"
     elif "boat" in t: return "Boat"
     elif "travel advisory" in t: return "Bell"
-    elif "crash" in t or "possible fatality" in t: return "Crash"
+    elif "crash" in t: return "Crash"
     elif "cone" in t: return "Cone"
     else: return "Caution"
 
@@ -68,9 +70,9 @@ def create_map_image(lat, lon, incident_type, retry=0):
         if os.path.exists(pin_path):
             pin = Image.open(pin_path).convert("RGBA")
             pin.thumbnail((PIN_SIZE, PIN_SIZE), Image.Resampling.LANCZOS)
-            scale_factor = min(PIN_SIZE / 315, PIN_SIZE / 974)
-            pinpoint_x_in_pin = int(315 * scale_factor)
-            pinpoint_y_in_pin = int(925 * scale_factor)
+            scale_factor = min(PIN_SIZE / 634, PIN_SIZE / 975)
+            pinpoint_x_in_pin = int(317 * scale_factor)
+            pinpoint_y_in_pin = int(920 * scale_factor)
             map_center_x = base_map.width // 2
             map_center_y = base_map.height // 2
             pin_x = map_center_x - pinpoint_x_in_pin
