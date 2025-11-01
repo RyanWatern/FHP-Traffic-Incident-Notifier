@@ -74,6 +74,8 @@ The pin size displayed on the static maps can be adjusted using the
 **300**, but you can increase or decrease this value depending on your
 preferred visual scale.
 
+To switch the map view from the default street style to a satellite view, update the style ID in the Mapbox URL. Simply replace `streets-v12` with `satellite-streets-v12`. This will load a satellite map with street overlays, giving a more detailed look. 
+
 # Filtering Notifications
 
 To filter notifications by county, edit the `FILTERED_COUNTIES` section.
