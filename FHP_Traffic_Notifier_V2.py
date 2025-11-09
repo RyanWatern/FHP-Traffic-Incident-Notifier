@@ -26,14 +26,42 @@ PIN_SIZE = 300
 
 sent_incidents, pending_incidents, preloaded, type_change_logged = {}, {}, {}, {}
 
-def get_custom_pin(incident_type):
+def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
     t = incident_type.lower()
+    if previous_type and "fatality" in t:
+        prev = previous_type.lower()
+        if "aircraft crash - water" in prev:
+            return "Aircraft_water_fatality"
+        elif "aircraft crash - land" in prev or "aircraft crash" in prev:
+            return "Aircraft_land_fatality"
+        elif "crash" in prev:
+            return "Crash_fatality"
+        elif "fire - structure" in prev:
+            return "Structure_fire_fatality"
+        elif "fire - vehicle" in prev:
+            return "Vehicle_fire_fatality"
+        elif "fire - boat" in prev:
+            return "Boat_fire_fatality"
+        elif "suicide" in prev:
+            return "Caution_fatality"
+    if had_fatality and "crash" not in t:
+        if "aircraft" in t and "water" in t:
+            return "Aircraft_water_fatality"
+        elif "aircraft" in t:
+            return "Aircraft_land_fatality"
+        elif "fire - structure" in t or "structure" in t:
+            return "Structure_fire_fatality"
+        elif "fire - vehicle" in t or "vehicle fire" in t:
+            return "Vehicle_fire_fatality"
+        elif "fire - boat" in t or "boat" in t:
+            return "Boat_fire_fatality"
+        elif "suicide" in t or "caution" in t:
+            return "Caution_fatality"
     if "disabled patrol" in t: return "Disabled_patrol"
     elif "road closed due to" in t: return "Roadblock"
     elif "traffic light out" in t: return "Traffic_light"
     elif "possible fatality" in t: return "Crash"
-    elif "fatality" in t: return "Crash_Fatality"
-    elif "suicide" in t: return "Caution_Fatality"
+    elif "suicide" in t: return "Caution"
     elif "purple" in t: return "Purple_alert"
     elif "silver" in t: return "Silver_alert"
     elif "missing person" in t or "amber alert" in t: return "Alert"
@@ -59,13 +87,13 @@ def log_timestamp():
     tz = {'Eastern Standard Time': 'EST', 'Eastern Daylight Time': 'EDT', 'Central Standard Time': 'CST', 'Central Daylight Time': 'CDT', 'Mountain Standard Time': 'MST', 'Mountain Daylight Time': 'MDT', 'Pacific Standard Time': 'PST', 'Pacific Daylight Time': 'PDT'}.get(time.strftime('%Z', time.localtime()), time.strftime('%Z', time.localtime()))
     return n.strftime(f"[%m/%d/%Y %I:%M:%S %p {tz}]")
 
-def create_map_image(lat, lon, incident_type, retry=0):
+def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=False, retry=0):
     try:
         url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675@2x?access_token={MAPBOX_TOKEN}"
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         base_map = Image.open(BytesIO(r.content)).convert("RGBA")
-        pin_file = get_custom_pin(incident_type)
+        pin_file = get_custom_pin(incident_type, previous_type, had_fatality)
         pin_path = os.path.join(PIN_FOLDER, f"{pin_file}.png")
         if os.path.exists(pin_path):
             pin = Image.open(pin_path).convert("RGBA")
@@ -88,7 +116,7 @@ def create_map_image(lat, lon, incident_type, retry=0):
         print(f"{log_timestamp()} Error creating map (attempt {retry + 1}): {e}")
         if retry < 2:
             time.sleep(2)
-            return create_map_image(lat, lon, incident_type, retry + 1)
+            return create_map_image(lat, lon, incident_type, previous_type, had_fatality, retry + 1)
         return None
 
 def proper_title_case(text):
@@ -376,7 +404,11 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
     map_img = None
     if GENERATE_MAPBOX_MAP and incident_data.get('lat') and incident_data.get('lon'):
         try:
-            map_img = create_map_image(float(incident_data['lat']), float(incident_data['lon']), incident_data['type'])
+            previous_type = previous_types[0] if (is_update and previous_types and len(previous_types) > 0) else None
+            had_fatality = False
+            if is_update and previous_types:
+                had_fatality = any("fatality" in pt.lower() for pt in previous_types)
+            map_img = create_map_image(float(incident_data['lat']), float(incident_data['lon']), incident_data['type'], previous_type, had_fatality)
             if DEBUG_MODE:
                 print(f"{log_timestamp()} DEBUG: {'New CAD incident' if not is_update else 'CAD incident'}: {incident_data['cad']} - Map generated {'successfully' if map_img else 'unsuccessfully'}\n")
         except Exception as e:
@@ -526,7 +558,6 @@ def process_incident(incident_raw):
             sent_incidents[cad] = {"type": incident_type, "previous_types": [], "location": incident_data['location'], "previous_locations": [], "remark": incident_data['remarks'], "previous_remarks": [], "reported": incident_data['reported']}
 
 def main():
-    print("Starting FHP Traffic Incident Notifier V2 - Developed by Ryan Watern\n")
     print(f"Counties: {', '.join(FILTER_COUNTIES)}\nFiltered Incident Types: {', '.join(FILTER_INCIDENT_TYPES) if FILTER_INCIDENT_TYPES else 'None'}\nCheck interval: {CHECK_INTERVAL} seconds\nNew incident remark wait time: {NEW_INCIDENT_WAIT_TIME} seconds\nUpdate remark wait time: {UPDATE_WAIT_TIME} seconds\nGenerate Mapbox Map: {'ON' if GENERATE_MAPBOX_MAP else 'OFF'}\nAdd County to Location: {'ON' if ADD_COUNTY_TO_LOCATION else 'OFF'}\nDebug mode: {'ON' if DEBUG_MODE else 'OFF'}\n" + "-" * 133 + "\nPreloading existing incidents...")
     print("")
     filtered_count = 0
@@ -556,3 +587,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
