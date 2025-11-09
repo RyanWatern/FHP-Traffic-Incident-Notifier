@@ -57,7 +57,7 @@ enable notifications.
 
 If you want to include static map images in your notifications, you will
 need a **Mapbox Access Token**. You can obtain this by signing up for a
-free account at [Mapbox](https://www.mapbox.com/). Once you have your
+free account at [**Mapbox**](https://www.mapbox.com/). Once you have your
 token, enter it into `MAPBOX_TOKEN`.
 
 The use of Mapbox static images can be **enabled or disabled** depending
