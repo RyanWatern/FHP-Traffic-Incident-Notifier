@@ -76,6 +76,8 @@ preferred visual scale.
 
 To switch the map view from the default street style to a satellite view, update the style ID in the Mapbox URL. Simply replace `streets-v12` with `satellite-streets-v12`. This will load a satellite map with street overlays, giving a more detailed look. 
 
+To adjust the map zoom level, find the line `url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675@2x?access_token={MAPBOX_TOKEN}` and change the `16,0` values to modify zoom. Zoom levels range from 0 (fully zoomed out) to 22 (fully zoomed in). For best results, keep it between 15 and 18, with 16 being ideal for streets and 17 for satellite. By default the map is set to streets at zoom level 16.
+
 # Filtering Notifications
 
 To filter notifications by county, edit the `FILTERED_COUNTIES` section.
