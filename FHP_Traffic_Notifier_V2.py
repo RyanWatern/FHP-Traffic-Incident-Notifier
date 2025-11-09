@@ -570,6 +570,7 @@ def main():
             if FILTER_INCIDENT_TYPES and any(filtered_type.lower() == incident_data["type"].lower() for filtered_type in FILTER_INCIDENT_TYPES):
                 filtered_count += 1
     if DEBUG_MODE:
+        print("Starting FHP Traffic Incident Notifier V2 - Developed by Ryan Watern\n")
         print(f"{log_timestamp()} DEBUG: Preloaded {len(preloaded)} existing incidents ({filtered_count} filtered)\n")
     print("Monitoring for new incidents and updates...\n" + "-" * 133)
     while True:
