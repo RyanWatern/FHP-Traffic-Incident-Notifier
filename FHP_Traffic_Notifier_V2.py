@@ -558,6 +558,7 @@ def process_incident(incident_raw):
             sent_incidents[cad] = {"type": incident_type, "previous_types": [], "location": incident_data['location'], "previous_locations": [], "remark": incident_data['remarks'], "previous_remarks": [], "reported": incident_data['reported']}
 
 def main():
+    print("Starting FHP Traffic Incident Notifier V2 - Developed by Ryan Watern\n")
     print(f"Counties: {', '.join(FILTER_COUNTIES)}\nFiltered Incident Types: {', '.join(FILTER_INCIDENT_TYPES) if FILTER_INCIDENT_TYPES else 'None'}\nCheck interval: {CHECK_INTERVAL} seconds\nNew incident remark wait time: {NEW_INCIDENT_WAIT_TIME} seconds\nUpdate remark wait time: {UPDATE_WAIT_TIME} seconds\nGenerate Mapbox Map: {'ON' if GENERATE_MAPBOX_MAP else 'OFF'}\nAdd County to Location: {'ON' if ADD_COUNTY_TO_LOCATION else 'OFF'}\nDebug mode: {'ON' if DEBUG_MODE else 'OFF'}\n" + "-" * 133 + "\nPreloading existing incidents...")
     print("")
     filtered_count = 0
@@ -570,7 +571,6 @@ def main():
             if FILTER_INCIDENT_TYPES and any(filtered_type.lower() == incident_data["type"].lower() for filtered_type in FILTER_INCIDENT_TYPES):
                 filtered_count += 1
     if DEBUG_MODE:
-        print("Starting FHP Traffic Incident Notifier V2 - Developed by Ryan Watern\n")
         print(f"{log_timestamp()} DEBUG: Preloaded {len(preloaded)} existing incidents ({filtered_count} filtered)\n")
     print("Monitoring for new incidents and updates...\n" + "-" * 133)
     while True:
