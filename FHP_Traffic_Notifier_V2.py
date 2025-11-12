@@ -406,17 +406,26 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
         try:
             previous_type = previous_types[0] if (is_update and previous_types and len(previous_types) > 0) else None
             had_fatality = False
+            
             if "fatality" in incident_data['type'].lower() and "possible" not in incident_data['type'].lower():
                 had_fatality = True
                 if incident_data['type'].lower().strip() == "fatality" and not previous_type:
                     previous_type = "Crash"
+            
             if is_update and previous_types:
+                prev_had_generic_fatality = any(pt.lower().strip() == "fatality" for pt in previous_types)
+                
+                if prev_had_generic_fatality:
+                    current_type_lower = incident_data['type'].lower()
+                    if any(keyword in current_type_lower for keyword in ['aircraft crash - water', 'aircraft crash - land', 'aircraft crash', 'fire - structure', 'structure', 'fire - vehicle', 'vehicle fire', 'fire - boat', 'boat', 'suicide', 'fire - brush', 'fire - prescribed']):
+                        had_fatality = True
+                        previous_type = incident_data['type']
+                
                 prev_had_fatality = any("fatality" in pt.lower() and "possible" not in pt.lower() for pt in previous_types)
-                if prev_had_fatality:
+                if prev_had_fatality and not (prev_had_generic_fatality and "fatality" not in incident_data['type'].lower()):
                     original_type = None
                     for pt in reversed(previous_types):
-                        pt_lower = pt.lower().strip()
-                        if "fatality" not in pt_lower:
+                        if "fatality" not in pt.lower().strip():
                             original_type = pt
                             break
                     
@@ -424,11 +433,10 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
                         current_normalized = ' '.join(incident_data['type'].lower().split())
                         original_normalized = ' '.join(original_type.lower().split())
                         
-                        if (current_normalized == original_normalized and
-                            "crash" not in original_normalized and
-                            "crash" not in current_normalized):
+                        if current_normalized == original_normalized and "crash" not in original_normalized and "crash" not in current_normalized:
                             had_fatality = True
                             previous_type = original_type
+            
             map_img = create_map_image(float(incident_data['lat']), float(incident_data['lon']), incident_data['type'], previous_type, had_fatality)
             if DEBUG_MODE:
                 print(f"{log_timestamp()} DEBUG: {'New CAD incident' if not is_update else 'CAD incident'}: {incident_data['cad']} - Map generated {'successfully' if map_img else 'unsuccessfully'}\n")
