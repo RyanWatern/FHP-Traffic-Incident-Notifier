@@ -28,23 +28,65 @@ sent_incidents, pending_incidents, preloaded, type_change_logged = {}, {}, {}, {
 
 def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
     t = incident_type.lower()
-    if previous_type and "fatality" in t:
-        prev = previous_type.lower()
-        if "aircraft crash - water" in prev:
-            return "Aircraft_water_fatality"
-        elif "aircraft crash - land" in prev or "aircraft crash" in prev:
-            return "Aircraft_land_fatality"
-        elif "crash" in prev:
-            return "Crash_fatality"
-        elif "fire - structure" in prev:
-            return "Structure_fire_fatality"
-        elif "fire - vehicle" in prev:
-            return "Vehicle_fire_fatality"
-        elif "fire - boat" in prev:
-            return "Boat_fire_fatality"
-        elif "suicide" in prev:
-            return "Caution_fatality"
-    if had_fatality and "crash" not in t:
+    
+    def find_original_type(prev_type):
+        if not prev_type:
+            return None
+        if isinstance(prev_type, list):
+            for pt in prev_type:
+                if pt and "possible fatality" not in pt.lower() and "fatality" not in pt.lower():
+                    return pt.lower()
+            return None
+        else:
+            if prev_type and "possible fatality" not in prev_type.lower() and "fatality" not in prev_type.lower():
+                return prev_type.lower()
+            return None
+    
+    if "possible fatality" in t and previous_type:
+        original = find_original_type(previous_type)
+        if original:
+            if "patrol car crash" in original or "patrol crash" in original:
+                return "Patrol_crash"
+            elif "aircraft crash - water" in original or ("aircraft" in original and "water" in original):
+                return "Aircraft_water"
+            elif "aircraft crash - land" in original or "aircraft crash" in original or "aircraft" in original:
+                return "Aircraft_land"
+            elif "fire - structure" in original:
+                return "Structure_fire"
+            elif "fire - vehicle" in original:
+                return "Vehicle_fire"
+            elif "fire - boat" in original:
+                return "Boat_fire"
+            elif "fire - brush/forest" in original or "fire - prescribed burn" in original:
+                return "Brushfire"
+            elif "fire" in original:
+                return "Fire"
+            elif "disabled patrol" in original:
+                return "Disabled_patrol"
+            elif "crash" in original:
+                return "Crash"
+            elif "suicide" in original:
+                return "Caution"
+    
+    if "fatality" in t and "possible" not in t:
+        original = find_original_type(previous_type)
+        if original:
+            if "patrol car crash" in original or "patrol crash" in original:
+                return "Patrol_crash_fatality"
+            elif "aircraft crash - water" in original or ("aircraft" in original and "water" in original):
+                return "Aircraft_water_fatality"
+            elif "aircraft crash - land" in original or "aircraft crash" in original or "aircraft" in original:
+                return "Aircraft_land_fatality"
+            elif "fire - structure" in original:
+                return "Structure_fire_fatality"
+            elif "fire - vehicle" in original:
+                return "Vehicle_fire_fatality"
+            elif "fire - boat" in original:
+                return "Boat_fire_fatality"
+            elif "crash" in original:
+                return "Crash_fatality"
+            elif "suicide" in original:
+                return "Caution_fatality"
         if "aircraft" in t and "water" in t:
             return "Aircraft_water_fatality"
         elif "aircraft" in t:
@@ -57,10 +99,30 @@ def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
             return "Boat_fire_fatality"
         elif "suicide" in t or "caution" in t:
             return "Caution_fatality"
+        else:
+            return "Crash_fatality"
+    
+    if had_fatality and "fatality" not in t:
+        if "patrol car crash" in t or "patrol crash" in t:
+            return "Patrol_crash"
+        elif "crash" in t:
+            return "Crash"
+        elif "aircraft" in t and "water" in t:
+            return "Aircraft_water_fatality"
+        elif "aircraft" in t:
+            return "Aircraft_land_fatality"
+        elif "fire - structure" in t or "structure" in t:
+            return "Structure_fire_fatality"
+        elif "fire - vehicle" in t or "vehicle fire" in t:
+            return "Vehicle_fire_fatality"
+        elif "fire - boat" in t or "boat" in t:
+            return "Boat_fire_fatality"
+        elif "suicide" in t or "caution" in t:
+            return "Caution_fatality"
+    
     if "disabled patrol" in t: return "Disabled_patrol"
     elif "road closed due to" in t: return "Roadblock"
     elif "traffic light out" in t: return "Traffic_light"
-    elif "possible fatality" in t: return "Crash"
     elif "suicide" in t: return "Caution"
     elif "purple" in t: return "Purple_alert"
     elif "silver" in t: return "Silver_alert"
@@ -75,6 +137,7 @@ def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
     elif "fire" in t: return "Fire"
     elif "construction" in t: return "Construction"
     elif "patrol car crash" in t or "patrol crash" in t: return "Patrol_crash"
+    elif "weather warning" in t: return "Weather"
     elif "disabled" in t: return "Disabled"
     elif "boat" in t: return "Boat"
     elif "travel advisory" in t: return "Bell"
@@ -404,7 +467,7 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
     map_img = None
     if GENERATE_MAPBOX_MAP and incident_data.get('lat') and incident_data.get('lon'):
         try:
-            previous_type = previous_types[0] if (is_update and previous_types and len(previous_types) > 0) else None
+            previous_type = previous_types if (is_update and previous_types and len(previous_types) > 0) else None
             had_fatality = False
             
             if "fatality" in incident_data['type'].lower() and "possible" not in incident_data['type'].lower():
