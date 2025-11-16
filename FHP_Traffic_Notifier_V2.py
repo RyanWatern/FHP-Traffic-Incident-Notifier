@@ -534,12 +534,12 @@ def process_pending_notifications():
     for cad, pending in list(pending_incidents.items()):
         incident_data, is_update, last_remarks = pending["data"], pending["is_update"], pending["last_remarks"]
         pending_start_remark = pending.get("pending_start_remark", "")
-        if incident_data['remarks'] and incident_data['remarks'] != pending_start_remark:
+        if incident_data['remarks'] != pending_start_remark:
             to_notify.append(cad)
         elif current_time >= pending["wait_until"]:
             if DEBUG_MODE:
                 if is_update:
-                    if incident_data['remarks'] and incident_data['remarks'] != pending_start_remark:
+                    if incident_data['remarks'] != pending_start_remark:
                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, updated remark provided\n")
                     else:
                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, no updated remark\n")
@@ -549,7 +549,7 @@ def process_pending_notifications():
                     else:
                         print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Wait time expired, no remark provided\n")
                 if is_update:
-                    if incident_data['remarks'] and incident_data['remarks'] != pending_start_remark:
+                    if incident_data['remarks'] != pending_start_remark:
                         print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark added\n")
                     elif incident_data['remarks']:
                         print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Remark remained: '{incident_data['remarks']}'\n")
@@ -610,7 +610,7 @@ def process_incident(incident_raw):
     
     if is_filtered and cad not in sent_incidents:
         if DEBUG_MODE:print(f"{log_timestamp()} DEBUG: Filtered incident type: {incident_type}\n"+"-"*133)
-        sent_incidents[cad]={"type":incident_type,"previous_types":[],"location":incident_data['location'],"previous_locations":[],"remark":incident_data['remarks'],"previous_remarks":[],"reported":incident_data['reported'],"last_notified_remark":incident_data['remarks']}
+        sent_incidents[cad]={"type":incident_type,"previous_types":[],"location":incident_data['location'],"previous_locations":[],"remark":incident_data['remarks'],"previous_remarks":[],"reported":incident_data['reported'],"last_notified_remark":""}
         return
     
     if cad in sent_incidents:
