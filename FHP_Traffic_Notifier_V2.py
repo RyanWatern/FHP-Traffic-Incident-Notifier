@@ -459,7 +459,7 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
     msg = f"{'Previous Incident Type' if len(previous_types) == 1 else 'Previous Incident Types'}: {', '.join(previous_types)}\n" if is_update and previous_types else ""
     msg += f"Location: {incident_data['location']}\n"
     msg += f"{'Previous Location' if len(previous_locations) == 1 else 'Previous Locations'}: {', '.join(previous_locations)}\n" if is_update and previous_locations and len(previous_locations) > 0 else ""
-    msg += f"Remark: {incident_data['remarks'] if incident_data['remarks'] else 'No Remarks Provided'}\n"
+    msg += f"Remark: {incident_data['remarks'] if incident_data['remarks'] else 'No Remark Provided'}\n"
     msg += f"{'Previous Remark' if len(previous_remarks) == 1 else 'Previous Remarks'}: {', '.join(previous_remarks)}\n" if is_update and previous_remarks and len(previous_remarks) > 0 else ""
     reported_time = stored_time if is_update and stored_time else incident_data['reported']
     msg += f"Reported: {reported_time}\nMap: {incident_data['map_link']}"
@@ -512,7 +512,7 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
     send_pushover_notification(title, msg, map_img)
     
     if DEBUG_MODE:
-        remarks_text = incident_data['remarks'] if incident_data['remarks'] else "No Remarks Provided"
+        remarks_text = incident_data['remarks'] if incident_data['remarks'] else "No Remark Provided"
         print(f"{log_timestamp()} Information sent:")
         print(f"{'New CAD Incident' if not is_update else 'CAD Incident'}: {incident_data['cad']}")
         print(f"Incident Type: {incident_data['type']}")
@@ -533,17 +533,31 @@ def process_pending_notifications():
     to_notify = []
     for cad, pending in list(pending_incidents.items()):
         incident_data, is_update, last_remarks = pending["data"], pending["is_update"], pending["last_remarks"]
-        if incident_data['remarks'] and incident_data['remarks'] != last_remarks:
-            if DEBUG_MODE:
-                print(f"{log_timestamp()} DEBUG: {'New CAD incident' if not is_update else 'CAD incident'}: {cad} - {'Updated remark added' if is_update else 'Remark added'}: '{incident_data['remarks']}'\n")
+        pending_start_remark = pending.get("pending_start_remark", "")
+        if incident_data['remarks'] and incident_data['remarks'] != pending_start_remark:
             to_notify.append(cad)
         elif current_time >= pending["wait_until"]:
             if DEBUG_MODE:
-                remarks_status = "new remarks provided" if is_update and incident_data['remarks'] != last_remarks else ("remarks provided" if incident_data['remarks'] else "no remarks provided")
-                print(f"\n{log_timestamp()} DEBUG: {'New CAD incident' if not is_update else 'CAD incident'}: {cad} - Wait time expired for {'update' if is_update else 'incident'}, {remarks_status}\n")
-                if incident_data['remarks']:
-                    remark_text = "Updated remark added" if is_update and incident_data['remarks'] != last_remarks else ("Remark remained" if is_update else "Remark added")
-                    print(f"{log_timestamp()} DEBUG: {'New CAD incident' if not is_update else 'CAD incident'}: {cad} - {remark_text}: '{incident_data['remarks']}'\n")
+                if is_update:
+                    if incident_data['remarks'] and incident_data['remarks'] != pending_start_remark:
+                       print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, updated remark provided\n")
+                    else:
+                       print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, no updated remark\n")
+                else:
+                    if incident_data['remarks']:
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Wait time expired, remark provided\n")
+                    else:
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Wait time expired, no remark provided\n")
+                if is_update:
+                    if incident_data['remarks'] and incident_data['remarks'] != pending_start_remark:
+                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark added\n")
+                    elif incident_data['remarks']:
+                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Remark remained: '{incident_data['remarks']}'\n")
+                else:
+                    if incident_data['remarks']:
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark added: '{incident_data['remarks']}'\n")
+                    else:
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark added: 'No Remark Provided'\n")
             to_notify.append(cad)
     
     for cad in to_notify:
@@ -568,8 +582,6 @@ def process_pending_notifications():
                 previous_remarks = previous_remarks_list if previous_remarks_list is not None else []
                 if last_notified_remark:
                     previous_remarks = [last_notified_remark] + previous_remarks
-                if DEBUG_MODE and previous_remarks:
-                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - {'Previous remark' if len(previous_remarks) == 1 else 'Previous remarks'}: {f'"{previous_remarks[0]}"' if len(previous_remarks) == 1 else f'"{chr(34)+chr(44)+chr(32)+chr(34).join(previous_remarks)}"'}\n")
             send_incident_notification(incident_data, is_update=True, previous_types=previous_types, previous_locations=previous_locations, previous_remarks=previous_remarks, stored_time=record.get("reported"))
             sent_incidents[cad]["previous_types"], sent_incidents[cad]["type"] = previous_types, incident_data['type']
             if incident_data['location'] != record.get("location", ""):
@@ -591,63 +603,47 @@ def process_pending_notifications():
         del pending_incidents[cad]
 
 def process_incident(incident_raw):
-    incident_data = extract_incident_data(incident_raw)
-    if not incident_data:
-        return
-    cad, incident_type = incident_data["cad"], incident_data["type"]
-    is_filtered = FILTER_INCIDENT_TYPES and any(filtered_type.lower() == incident_type.lower() for filtered_type in FILTER_INCIDENT_TYPES)
-    
-    if is_filtered and cad in sent_incidents:
-        if incident_data['location'] != sent_incidents[cad].get("location", ""):
-            sent_incidents[cad]["location"] = incident_data['location']
-        if incident_data['remarks'] != sent_incidents[cad].get("remark", ""):
-            sent_incidents[cad]["remark"] = incident_data['remarks']
-        return
+    incident_data=extract_incident_data(incident_raw)
+    if not incident_data:return
+    cad,incident_type=incident_data["cad"],incident_data["type"]
+    is_filtered=FILTER_INCIDENT_TYPES and any(filtered_type.lower()==incident_type.lower()for filtered_type in FILTER_INCIDENT_TYPES)
     
     if is_filtered and cad not in sent_incidents:
-        if DEBUG_MODE:
-            print(f"{log_timestamp()} DEBUG: Filtered incident type: {incident_type}")
-            print("-" * 133)
-        sent_incidents[cad] = {"type": incident_type, "previous_types": [], "location": incident_data['location'], "previous_locations": [], "remark": incident_data['remarks'], "previous_remarks": [], "reported": incident_data['reported'], "last_notified_remark": incident_data['remarks']}
+        if DEBUG_MODE:print(f"{log_timestamp()} DEBUG: Filtered incident type: {incident_type}\n"+"-"*133)
+        sent_incidents[cad]={"type":incident_type,"previous_types":[],"location":incident_data['location'],"previous_locations":[],"remark":incident_data['remarks'],"previous_remarks":[],"reported":incident_data['reported'],"last_notified_remark":incident_data['remarks']}
         return
     
     if cad in sent_incidents:
-        record = sent_incidents[cad]
-        if incident_type != record["type"]:
-            type_change_key = f"{cad}_{record['type']}_to_{incident_type}"
+        record=sent_incidents[cad]
+        if incident_data['location']!=record.get("location",""):
+            if not is_filtered:
+                if"previous_locations"not in sent_incidents[cad]:sent_incidents[cad]["previous_locations"]=[]
+                if record.get("location"):sent_incidents[cad]["previous_locations"].insert(0,record["location"])
+            sent_incidents[cad]["location"]=incident_data['location']
+        if incident_data['remarks']!=record.get("remark",""):
+            if"previous_remarks"not in sent_incidents[cad]:sent_incidents[cad]["previous_remarks"]=[]
+            if record.get("remark"):sent_incidents[cad]["previous_remarks"].insert(0,record["remark"])
+            sent_incidents[cad]["remark"]=incident_data['remarks'];sent_incidents[cad]["last_notified_remark"]=incident_data['remarks']
+        if is_filtered:return
+        if incident_type!=record["type"]:
+            type_change_key=f"{cad}_{record['type']}_to_{incident_type}"
             if type_change_key not in type_change_logged:
                 if DEBUG_MODE:
                     print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Incident type changed from '{record['type']}' to '{incident_type}'\n")
-                    if incident_data['location'] != record.get("location", ""):
-                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Raw location: {' '.join(incident_raw['location'].split())}\n")
-                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Formatted location: {incident_data['location']}\n")
-                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - New location: {incident_data['location']}\n")
-                    else:
-                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - No updates on location\n")
-                type_change_logged[type_change_key] = True
-            if cad in pending_incidents:
-                pending_incidents[cad]["data"] = incident_data
+                    if incident_data['location']!=record.get("location",""):print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Raw location: {' '.join(incident_raw['location'].split())}\n{log_timestamp()} DEBUG: CAD incident: {cad} - Formatted location: {incident_data['location']}\n{log_timestamp()} DEBUG: CAD incident: {cad} - New location: {incident_data['location']}\n")
+                    else:print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - No updates on location\n")
+                type_change_logged[type_change_key]=True
+            if cad in pending_incidents:pending_incidents[cad]["data"]=incident_data
             else:
-                pending_incidents[cad] = {"data": incident_data, "wait_until": datetime.now() + timedelta(seconds=UPDATE_WAIT_TIME), "is_update": True, "last_remarks": sent_incidents[cad].get("remark", "")}
-                if DEBUG_MODE:
-                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Added to pending updates, waiting {UPDATE_WAIT_TIME} seconds for updated remark\n")
-        elif cad in sent_incidents:
-            if incident_data['location'] != sent_incidents[cad].get("location", ""):
-                sent_incidents[cad]["location"] = incident_data['location']
-            if incident_data['remarks'] != sent_incidents[cad].get("remark", ""):
-                sent_incidents[cad]["remark"] = incident_data['remarks']
+                pending_incidents[cad]={"data":incident_data,"wait_until":datetime.now()+timedelta(seconds=UPDATE_WAIT_TIME),"is_update":True,"last_remarks":sent_incidents[cad].get("remark",""),"pending_start_remark":incident_data['remarks']or""}
+                if DEBUG_MODE:print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Added to pending updates, waiting {UPDATE_WAIT_TIME} seconds for updated remark\n")
     else:
-        if not preloaded.get(cad, False):
-            if cad in pending_incidents:
-                pending_incidents[cad]["data"] = incident_data
+        if not preloaded.get(cad,False):
+            if cad in pending_incidents:pending_incidents[cad]["data"]=incident_data
             else:
-                pending_incidents[cad] = {"data": incident_data, "wait_until": datetime.now() + timedelta(seconds=NEW_INCIDENT_WAIT_TIME), "is_update": False, "last_remarks": ""}
-                if DEBUG_MODE:
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - New incident added to pending, waiting {NEW_INCIDENT_WAIT_TIME} seconds for remark\n")
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Raw location: {' '.join(incident_raw['location'].split())}\n")
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Formatted location: {incident_data['location']}\n")
-        else:
-            sent_incidents[cad] = {"type": incident_type, "previous_types": [], "location": incident_data['location'], "previous_locations": [], "remark": incident_data['remarks'], "previous_remarks": [], "reported": incident_data['reported'], "last_notified_remark": incident_data['remarks']}
+                pending_incidents[cad]={"data":incident_data,"wait_until":datetime.now()+timedelta(seconds=NEW_INCIDENT_WAIT_TIME),"is_update":False,"last_remarks":"","pending_start_remark":incident_data['remarks']or""}
+                if DEBUG_MODE:print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - New incident added to pending, waiting {NEW_INCIDENT_WAIT_TIME} seconds for remark\n");print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Raw location: {' '.join(incident_raw['location'].split())}\n");print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Formatted location: {incident_data['location']}\n")
+        else:sent_incidents[cad]={"type":incident_type,"previous_types":[],"location":incident_data['location'],"previous_locations":[],"remark":incident_data['remarks'],"previous_remarks":[],"reported":incident_data['reported'],"last_notified_remark":incident_data['remarks']}
 
 def main():
     print("Starting FHP Traffic Incident Notifier V2 - Developed by Ryan Watern\n")
