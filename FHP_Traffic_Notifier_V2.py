@@ -152,7 +152,7 @@ def log_timestamp():
 
 def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=False, retry=0):
     try:
-        url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675@2x?access_token={MAPBOX_TOKEN}"
+        url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675?access_token={MAPBOX_TOKEN}"
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         base_map = Image.open(BytesIO(r.content)).convert("RGBA")
@@ -171,9 +171,20 @@ def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=F
             base_map.paste(pin, (pin_x, pin_y), pin)
         else:
             print(f"{log_timestamp()} Warning: Pin file not found: {pin_path}")
+        
         buf = BytesIO()
-        base_map.save(buf, format='PNG', quality=95)
+        rgb_map = base_map.convert('RGB')
+        rgb_map.save(buf, format='JPEG', quality=80, optimize=True)
         buf.seek(0)
+        
+        if buf.getbuffer().nbytes > 500000:
+            buf = BytesIO()
+            new_width = int(rgb_map.width * 0.85)
+            new_height = int(rgb_map.height * 0.85)
+            rgb_map = rgb_map.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            rgb_map.save(buf, format='JPEG', quality=75, optimize=True)
+            buf.seek(0)
+        
         return buf
     except Exception as e:
         print(f"{log_timestamp()} Error creating map (attempt {retry + 1}): {e}")
@@ -384,7 +395,7 @@ def send_pushover_notification(title, message, img_data=None):
     files = {}
     if img_data:
         img_data.seek(0)
-        files = {"attachment": ("map.png", img_data, "image/png")}
+        files = {"attachment": ("map.jpg", img_data, "image/jpeg")}
     response = requests.post("https://api.pushover.net/1/messages.json", data=data, files=files if files else None)
     if DEBUG_MODE:
         print(f"{log_timestamp()} Pushover notification {'sent' if response.status_code == 200 else 'failed to send'}: {title}\n")
