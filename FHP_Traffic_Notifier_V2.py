@@ -152,7 +152,7 @@ def log_timestamp():
 
 def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=False, retry=0):
     try:
-        url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675?access_token={MAPBOX_TOKEN}"
+        url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675@2x?access_token={MAPBOX_TOKEN}"
         r = requests.get(url, timeout=10)
         r.raise_for_status()
         base_map = Image.open(BytesIO(r.content)).convert("RGBA")
@@ -174,13 +174,13 @@ def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=F
         
         buf = BytesIO()
         rgb_map = base_map.convert('RGB')
-        rgb_map.save(buf, format='JPEG', quality=80, optimize=True)
+        rgb_map.save(buf, format='JPEG', quality=75, optimize=True)
         buf.seek(0)
         
         if buf.getbuffer().nbytes > 500000:
             buf = BytesIO()
-            new_width = int(rgb_map.width * 0.85)
-            new_height = int(rgb_map.height * 0.85)
+            new_width = int(rgb_map.width * 0.8)
+            new_height = int(rgb_map.height * 0.8)
             rgb_map = rgb_map.resize((new_width, new_height), Image.Resampling.LANCZOS)
             rgb_map.save(buf, format='JPEG', quality=75, optimize=True)
             buf.seek(0)
