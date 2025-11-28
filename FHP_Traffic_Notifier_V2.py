@@ -29,6 +29,9 @@ sent_incidents, pending_incidents, preloaded, type_change_logged = {}, {}, {}, {
 def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
     t = incident_type.lower()
     
+    if "possible fatality" in t and not previous_type:
+        return "Crash"
+    
     def find_original_type(prev_type):
         if not prev_type:
             return None
@@ -102,15 +105,15 @@ def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
         else:
             return "Crash_fatality"
     
-    if had_fatality and "fatality" not in t:
+if had_fatality and "fatality" not in t:
         if "patrol car crash" in t or "patrol crash" in t:
             return "Patrol_crash"
-        elif "crash" in t:
-            return "Crash"
         elif "aircraft" in t and "water" in t:
             return "Aircraft_water_fatality"
         elif "aircraft" in t:
             return "Aircraft_land_fatality"
+        elif "crash" in t:
+            return "Crash"
         elif "fire - structure" in t or "structure" in t:
             return "Structure_fire_fatality"
         elif "fire - vehicle" in t or "vehicle fire" in t:
