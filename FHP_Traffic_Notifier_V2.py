@@ -105,7 +105,7 @@ def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
         else:
             return "Crash_fatality"
     
-if had_fatality and "fatality" not in t:
+    if had_fatality and "fatality" not in t:
         if "patrol car crash" in t or "patrol crash" in t:
             return "Patrol_crash"
         elif "aircraft" in t and "water" in t:
