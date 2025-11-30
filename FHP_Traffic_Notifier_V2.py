@@ -441,14 +441,13 @@ def format_time(reported_time):
     try:
         dt = datetime.strptime(reported_time, "%m/%d/%Y %H:%M:%S")
         incident_hour = dt.hour
-        current_hour = datetime.now().hour
         if incident_hour == 0:
             display_hour = 12
         elif incident_hour <= 12:
             display_hour = incident_hour
         else:
             display_hour = incident_hour - 12
-        am_pm = "AM" if current_hour < 12 else "PM"
+        am_pm = "AM" if incident_hour < 12 else "PM"
         return f"{display_hour}:{dt.strftime('%M')} {am_pm}"
     except:
         return reported_time or "Unknown time"
