@@ -439,18 +439,17 @@ def fetch_incidents():
 
 def format_time(reported_time):
     try:
-        dt = datetime.strptime(reported_time, "%m/%d/%Y %H:%M:%S")
-        incident_hour = dt.hour
-        if incident_hour == 0:
-            display_hour = 12
-        elif incident_hour <= 12:
-            display_hour = incident_hour
-        else:
-            display_hour = incident_hour - 12
-        am_pm = "AM" if incident_hour < 12 else "PM"
-        return f"{display_hour}:{dt.strftime('%M')} {am_pm}"
-    except:
-        return reported_time or "Unknown time"
+        dt=datetime.strptime(reported_time,"%m/%d/%Y %H:%M:%S");ih=dt.hour;now=datetime.now();ch=now.hour
+        if ch<12:h24=ih if ih!=12 else 0
+        else:h24=ih if ih==12 else ih+12
+        test_dt=now.replace(hour=h24,minute=dt.minute,second=dt.second,microsecond=0)
+        if test_dt>now:h24=(h24-12)%24
+        if h24==0:dh=12;ap="AM"
+        elif h24<12:dh=h24;ap="AM"
+        elif h24==12:dh=12;ap="PM"
+        else:dh=h24-12;ap="PM"
+        return f"{dh}:{dt.strftime('%M')} {ap}"
+    except:return reported_time or"Unknown time"
 
 def extract_incident_data(incident):
     remarks = incident['remarks'].title() if incident['remarks'] else ""
