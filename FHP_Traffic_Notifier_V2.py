@@ -148,6 +148,17 @@ def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
     elif "cone" in t: return "Cone"
     else: return "Caution"
 
+def display_incident_type(formatted_type):
+    display_map = {
+        'Fire - Structure': 'Structure Fire',
+        'Fire - Boat': 'Boat Fire',
+        'Fire - Vehicle': 'Vehicle Fire',
+        'Fire - Brush/Forest': 'Brush/Forest Fire',
+        'Fire - Prescribed Burn': 'Prescribed Burn',
+        'Roadway Debris/Object': 'Debris/Object in Roadway'
+    }
+    return display_map.get(formatted_type, formatted_type)
+
 def log_timestamp():
     n = datetime.now()
     tz = {'Eastern Standard Time': 'EST', 'Eastern Daylight Time': 'EDT', 'Central Standard Time': 'CST', 'Central Daylight Time': 'CDT', 'Mountain Standard Time': 'MST', 'Mountain Daylight Time': 'MDT', 'Pacific Standard Time': 'PST', 'Pacific Daylight Time': 'PDT'}.get(time.strftime('%Z', time.localtime()), time.strftime('%Z', time.localtime()))
@@ -467,8 +478,8 @@ def extract_incident_data(incident):
     return {"cad": incident['cad'], "type": format_incident_type(incident['type']), "location": loc, "remarks": remarks, "reported": format_time(incident['reported']), "lat": incident['lat'], "lon": incident['lon'], "map_link": f"https://maps.google.com/?q={incident['lat']},{incident['lon']}" if incident['lat'] and incident['lon'] else ""}
 
 def send_incident_notification(incident_data, is_update=False, previous_types=None, previous_locations=None, previous_remarks=None, stored_time=None):
-    title = f"UPDATE: {incident_data['type']}" if is_update else incident_data['type']
-    msg = f"{'Previous Incident Type' if len(previous_types) == 1 else 'Previous Incident Types'}: {', '.join(previous_types)}\n" if is_update and previous_types else ""
+    title = f"UPDATE: {display_incident_type(incident_data['type'])}" if is_update else display_incident_type(incident_data['type'])
+    msg = f"{'Previous Incident Type' if len(previous_types) == 1 else 'Previous Incident Types'}: {', '.join([display_incident_type(pt) for pt in previous_types])}\n" if is_update and previous_types else ""
     msg += f"Location: {incident_data['location']}\n"
     msg += f"{'Previous Location' if len(previous_locations) == 1 else 'Previous Locations'}: {', '.join(previous_locations)}\n" if is_update and previous_locations and len(previous_locations) > 0 else ""
     msg += f"Remark: {incident_data['remarks'] if incident_data['remarks'] else 'No Remark Provided'}\n"
@@ -527,9 +538,9 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
         remarks_text = incident_data['remarks'] if incident_data['remarks'] else "No Remark Provided"
         print(f"{log_timestamp()} Information sent:")
         print(f"{'New CAD Incident' if not is_update else 'CAD Incident'}: {incident_data['cad']}")
-        print(f"Incident Type: {incident_data['type']}")
+        print(f"Incident Type: {display_incident_type(incident_data['type'])}")
         if is_update and previous_types:
-            print(f"{'Previous Incident Type' if len(previous_types) == 1 else 'Previous Incident Types'}: {', '.join(previous_types)}")
+            print(f"{'Previous Incident Type' if len(previous_types) == 1 else 'Previous Incident Types'}: {', '.join([display_incident_type(pt) for pt in previous_types])}")
         print(f"Location: {incident_data['location']}")
         if is_update and previous_locations and len(previous_locations) > 0:
             print(f"{'Previous Location' if len(previous_locations) == 1 else 'Previous Locations'}: {', '.join(previous_locations)}")
