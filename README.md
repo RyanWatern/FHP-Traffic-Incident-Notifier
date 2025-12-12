@@ -2,8 +2,8 @@ A real-time notification system that monitors the Florida Highway Patrol Live Tr
 
 <div align="center">
   <img src="Images/6877bcde-3d01-4a1b-a940-9e30c394fb58.jpg" width="250" />
-  <img src="Images/2adfda46-4c2b-431a-8a40-a42d52e6e5cd.jpg" width="250" />
-  <img src="Images/download.jpg" width="250" />
+  <img src="Images/IMG_3836.jpeg" width="250" />
+  <img src="Images/Untitled%20(19).PNG" width="250" />
 </div>
 
 <br>
