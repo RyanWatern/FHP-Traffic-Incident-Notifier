@@ -25,6 +25,7 @@ PIN_FOLDER = r"C:\Users\YOUR_FOLDER_LOCATION\Map Pins"
 PIN_SIZE = 300
 
 sent_incidents, pending_incidents, preloaded, type_change_logged = {}, {}, {}, {}
+http_session = requests.Session()
 
 def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
     t = incident_type.lower()
@@ -167,7 +168,7 @@ def log_timestamp():
 def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=False, retry=0):
     try:
         url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675@2x?access_token={MAPBOX_TOKEN}"
-        r = requests.get(url, timeout=10)
+        r = http_session.get(url, timeout=10)
         r.raise_for_status()
         base_map = Image.open(BytesIO(r.content)).convert("RGBA")
         pin_file = get_custom_pin(incident_type, previous_type, had_fatality)
@@ -187,19 +188,33 @@ def create_map_image(lat, lon, incident_type, previous_type=None, had_fatality=F
             print(f"{log_timestamp()} Warning: Pin file not found: {pin_path}")
         
         buf = BytesIO()
-        rgb_map = base_map.convert('RGB')
-        rgb_map.save(buf, format='JPEG', quality=75, optimize=True)
-        buf.seek(0)
+        max_size_bytes = 500000
         
-        if buf.getbuffer().nbytes > 500000:
-            buf = BytesIO()
-            new_width = int(rgb_map.width * 0.8)
-            new_height = int(rgb_map.height * 0.8)
-            rgb_map = rgb_map.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            rgb_map.save(buf, format='JPEG', quality=75, optimize=True)
+        base_map.save(buf, format='PNG', optimize=True)
+        size = buf.tell()
+        
+        if size <= max_size_bytes:
             buf.seek(0)
+            return buf
         
+        buf = BytesIO()
+        rgb_map = base_map.convert('RGB')
+        quality = 95
+        
+        while quality >= 70:
+            buf = BytesIO()
+            rgb_map.save(buf, format='JPEG', quality=quality, optimize=True)
+            size = buf.tell()
+            
+            if size <= max_size_bytes:
+                buf.seek(0)
+                return buf
+            
+            quality -= 5
+        
+        buf.seek(0)
         return buf
+        
     except Exception as e:
         print(f"{log_timestamp()} Error creating map (attempt {retry + 1}): {e}")
         if retry < 2:
@@ -410,7 +425,7 @@ def send_pushover_notification(title, message, img_data=None):
     if img_data:
         img_data.seek(0)
         files = {"attachment": ("map.jpg", img_data, "image/jpeg")}
-    response = requests.post("https://api.pushover.net/1/messages.json", data=data, files=files if files else None)
+    response = http_session.post("https://api.pushover.net/1/messages.json", data=data, files=files if files else None)
     if DEBUG_MODE:
         print(f"{log_timestamp()} Pushover notification {'sent' if response.status_code == 200 else 'failed to send'}: {title}\n")
     if response.status_code != 200:
@@ -418,7 +433,7 @@ def send_pushover_notification(title, message, img_data=None):
 
 def fetch_incidents():
     try:
-        response = requests.get(WEB_URL, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}, timeout=10)
+        response = http_session.get(WEB_URL, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         update_panel = soup.find('span', {'id': 'UpdatePanel2'})
@@ -724,12 +739,34 @@ def main():
     if DEBUG_MODE:
         print(f"{log_timestamp()} DEBUG: Preloaded {len(preloaded)} existing incidents ({filtered_count} filtered)\n")
     print("Monitoring for new incidents and updates...\n" + "-" * 133)
+    iteration_count = 0
     while True:
         try:
-            for incident in fetch_incidents():
+            current_incs = fetch_incidents()
+            
+            if iteration_count % 50 == 0 and iteration_count > 0:
+                current_cads = {inc['cad'] for inc in current_incs}
+                current_time = datetime.now()
+                
+                for cad in list(sent_incidents.keys()):
+                    if cad not in current_cads:
+                        if 'cleared_time' not in sent_incidents[cad]:
+                            sent_incidents[cad]['cleared_time'] = current_time
+                        elif (current_time - sent_incidents[cad]['cleared_time']).total_seconds() > 86400:
+                            del sent_incidents[cad]
+                            if cad in preloaded:
+                                del preloaded[cad]
+                    else:
+                        if 'cleared_time' in sent_incidents[cad]:
+                            del sent_incidents[cad]['cleared_time']
+                
+                type_change_logged.clear()
+            
+            for incident in current_incs:
                 process_incident(incident)
             process_pending_notifications()
             time.sleep(CHECK_INTERVAL)
+            iteration_count += 1
         except KeyboardInterrupt:
             print("\nShutting down monitor...")
             break
