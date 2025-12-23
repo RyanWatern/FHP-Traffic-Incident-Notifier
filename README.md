@@ -53,6 +53,32 @@ Once your account is set up, you will receive both a **User Key** and an
 **API Token**. These credentials must be entered into the script under `PUSHOVER_USER_KEY` and `PUSHOVER_API_TOKEN` to
 enable notifications.
 
+# Filtering Notifications
+
+To filter notifications by county, edit the `FILTERED_COUNTIES` section.
+Include only the counties from which you wish to receive
+notifications. For example, to receive notifications exclusively for
+Pasco County, you would enter:`[Pasco]`
+
+This process differs from filtering incident types. To exclude specific
+incident types, list them in the `FILTERED_INCIDENTS` section. The names
+must match exactly as they appear on the official FHP page for the
+filter to work properly. For example, if you do not wish to receive
+notifications for Vehicle Crashes that involve no injuries or
+roadblocks, enter:`[Vehicle Crash]`
+
+**Note:** If an incident updates to a type that is not filtered, you
+will still receive the update notification, which will include the
+previous incident type.
+
+# Priority Notification Options
+
+The script supports two priority levels: High Priority and Emergency Priority. High priority sends a time-sensitive alert and, if enabled in the Pushover app, can deliver critical alerts that override "Do Not Disturb" and other phone silent settings.
+
+The emergency priority alerts provide the highest level of notification. If enabled in the app, these alerts repeat every 30 seconds for up to one hour until acknowledged in the Pushover app.
+
+To use priority alerts, selected incident types must be assigned in the script, this is located in the top of the script. Add the selected incident types under `HIGH_PRIORITY_INCIDENT_TYPES = []` or `EMERGENCY_PRIORITY_INCIDENT_TYPES = []`. These selected incident types must be listed as strings (for example, `HIGH_PRIORITY_INCIDENT_TYPES = ["Fatality", "Aircraft Crash- Land"]`). **Note:** selected incident types must exactly match the CAD system spelling for priority alerts to work.
+
 # Mapbox Static Map Images
 
 If you want to include static map images in your notifications, you will
@@ -77,24 +103,6 @@ preferred visual scale.
 To switch the map view from the default street style to a satellite view, update the style ID in the Mapbox URL. Simply replace `streets-v12` with `satellite-streets-v12`. This will load a satellite map with street overlays, giving a more detailed look. 
 
 To adjust the map zoom level, locate the line `url = f"https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/{lon},{lat},16,0/1200x675@2x?access_token={MAPBOX_TOKEN}` then change the `16,0` value. Zoom levels range from 0 (fully zoomed out) to 22 (fully zoomed in). For best results, keep it between 15 and 18, with 16 being ideal for streets and 17 for satellite. By default the map is set to streets at zoom level 16. The second value is the bearing which is used to rotate the map, it isn’t recommended to modify that value. By default the bearing is set to 0. This value can be modified from 0 to 360. A value of 0 represents true north (no rotation). A value of 90 rotates the map 90 degrees clockwise and a value of 180 flips the map.
-
-# Filtering Notifications
-
-To filter notifications by county, edit the `FILTERED_COUNTIES` section.
-Include only the counties from which you wish to receive
-notifications. For example, to receive notifications exclusively for
-Pasco County, you would enter:`[Pasco]`
-
-This process differs from filtering incident types. To exclude specific
-incident types, list them in the `FILTERED_INCIDENTS` section. The names
-must match exactly as they appear on the official FHP page for the
-filter to work properly. For example, if you do not wish to receive
-notifications for Vehicle Crashes that involve no injuries or
-roadblocks, enter:`[Vehicle Crash]`
-
-**Note:** If an incident updates to a type that is not filtered, you
-will still receive the update notification, which will include the
-previous incident type.
 
 # Road Mapping
 
