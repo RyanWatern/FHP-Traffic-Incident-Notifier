@@ -65,7 +65,7 @@ incident types, list them in the `FILTERED_INCIDENTS` section. The names
 must match exactly as they appear on the official FHP page for the
 filter to work properly. For example, if you do not wish to receive
 notifications for Vehicle Crashes that involve no injuries or
-roadblocks, enter:`[Vehicle Crash]`
+roadblocks, enter:`["Vehicle Crash"]`
 
 **Note:** If an incident updates to a type that is not filtered, you
 will still receive the update notification, which will include the
