@@ -17,6 +17,8 @@ ADD_COUNTY_TO_LOCATION = True
 # All 67 Florida Counties: Alachua, Baker, Bay, Bradford, Brevard, Broward, Calhoun, Charlotte, Citrus, Clay, Collier, Columbia, DeSoto, Dixie, Duval, Escambia, Flagler, Franklin, Gadsden, Gilchrist, Glades, Gulf, Hamilton, Hardee, Hendry, Hernando, Highlands, Hillsborough, Holmes, Indian River, Jackson, Jefferson, Lafayette, Lake, Lee, Leon, Levy, Liberty, Madison, Manatee, Marion, Martin, Miami-Dade, Monroe, Nassau, Okaloosa, Okeechobee, Orange, Osceola, Palm Beach, Pasco, Pinellas, Polk, Putnam, St. Johns, St. Lucie, Santa Rosa, Sarasota, Seminole, Sumter, Suwannee, Taylor, Union, Volusia, Wakulla, Walton, Washington
 FILTER_COUNTIES = ["Alachua", "Baker", "Bay", "Bradford", "Brevard", "Broward", "Calhoun", "Charlotte", "Citrus", "Clay", "Collier", "Columbia", "DeSoto", "Dixie", "Duval", "Escambia", "Flagler", "Franklin", "Gadsden", "Gilchrist", "Glades", "Gulf", "Hamilton", "Hardee", "Hendry", "Hernando", "Highlands", "Hillsborough", "Holmes", "Indian River", "Jackson", "Jefferson", "Lafayette", "Lake", "Lee", "Leon", "Levy", "Liberty", "Madison", "Manatee", "Marion", "Martin", "Miami-Dade", "Monroe", "Nassau", "Okaloosa", "Okeechobee", "Orange", "Osceola", "Palm Beach", "Pasco", "Pinellas", "Polk", "Putnam", "St. Johns", "St. Lucie", "Santa Rosa", "Sarasota", "Seminole", "Sumter", "Suwannee", "Taylor", "Union", "Volusia", "Wakulla", "Walton", "Washington"]
 FILTER_INCIDENT_TYPES = []  # Example: ["Vehicle Crash", "Disabled Vehicle"] - Leave empty [] to show all incident types
+HIGH_PRIORITY_INCIDENT_TYPES = [] # Example: ["Fatality", "Patrol Car Crash"] - Leave empty [] to not receive any high priority alerts
+EMERGENCY_PRIORITY_INCIDENT_TYPES = [] # Example: ["Aircraft Crash - Land", "Structure Fire"] - Leave empty [] to not receive any emergency priority alerts
 NEW_INCIDENT_WAIT_TIME = 120
 UPDATE_WAIT_TIME = 60
 HIGHWAY_NAMES = {'SR-589': 'Suncoast Parkway', 'FLORIDA\'S TPKE': 'Florida\'s Turnpike'}
@@ -419,18 +421,6 @@ def clean_web_address(web_loc, county=None):
         loc = f"In Front of {loc}"
     return f"{loc}, {proper_title_case(city)}" if city and city.lower() not in loc.lower() else loc
 
-def send_pushover_notification(title, message, img_data=None):
-    data = {"token": PUSHOVER_API_TOKEN, "user": PUSHOVER_USER_KEY, "title": title, "message": message}
-    files = {}
-    if img_data:
-        img_data.seek(0)
-        files = {"attachment": ("map.jpg", img_data, "image/jpeg")}
-    response = http_session.post("https://api.pushover.net/1/messages.json", data=data, files=files if files else None)
-    if DEBUG_MODE:
-        print(f"{log_timestamp()} Pushover notification {'sent' if response.status_code == 200 else 'failed to send'}: {title}\n")
-    if response.status_code != 200:
-        print(f"Failed to send Pushover notification: {response.text}\n")
-
 def fetch_incidents():
     try:
         response = http_session.get(WEB_URL, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}, timeout=10)
@@ -492,6 +482,34 @@ def extract_incident_data(incident):
     
     return {"cad": incident['cad'], "type": format_incident_type(incident['type']), "location": loc, "remarks": remarks, "reported": format_time(incident['reported']), "lat": incident['lat'], "lon": incident['lon'], "map_link": f"https://maps.google.com/?q={incident['lat']},{incident['lon']}" if incident['lat'] and incident['lon'] else ""}
 
+def is_high_priority(incident_type):
+    incident_lower = incident_type.lower().strip()
+    return incident_lower in [keyword.lower().strip() for keyword in HIGH_PRIORITY_INCIDENT_TYPES]
+
+def is_emergency_priority(incident_type):
+    incident_lower = incident_type.lower().strip()
+    return incident_lower in [keyword.lower().strip() for keyword in EMERGENCY_PRIORITY_INCIDENT_TYPES]
+
+def send_pushover_notification(title, message, img_data=None, priority_level=0):
+    data = {"token": PUSHOVER_API_TOKEN, "user": PUSHOVER_USER_KEY, "title": title, "message": message}
+    
+    if priority_level > 0:
+        data["priority"] = priority_level
+        if priority_level == 2:
+            data["retry"] = 30
+            data["expire"] = 3600
+    
+    files = {}
+    if img_data:
+        img_data.seek(0)
+        files = {"attachment": ("map.jpg", img_data, "image/jpeg")}
+    response = http_session.post("https://api.pushover.net/1/messages.json", data=data, files=files if files else None)
+    if DEBUG_MODE:
+        priority_text = "Emergency priority " if priority_level == 2 else ("High priority " if priority_level == 1 else "")
+        print(f"{log_timestamp()} {priority_text}Pushover notification {'sent' if response.status_code == 200 else 'failed to send'}: {title}\n")
+    if response.status_code != 200:
+        print(f"Failed to send Pushover notification: {response.text}\n")
+
 def send_incident_notification(incident_data, is_update=False, previous_types=None, previous_locations=None, previous_remarks=None, stored_time=None):
     title = f"UPDATE: {display_incident_type(incident_data['type'])}" if is_update else display_incident_type(incident_data['type'])
     msg = f"{'Previous Incident Type' if len(previous_types) == 1 else 'Previous Incident Types'}: {', '.join([display_incident_type(pt) for pt in previous_types])}\n" if is_update and previous_types else ""
@@ -501,6 +519,13 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
     msg += f"{'Previous Remark' if len(previous_remarks) == 1 else 'Previous Remarks'}: {', '.join(previous_remarks)}\n" if is_update and previous_remarks and len(previous_remarks) > 0 else ""
     reported_time = stored_time if is_update and stored_time else incident_data['reported']
     msg += f"Reported: {reported_time}\nMap: {incident_data['map_link']}"
+    
+    priority_level = 0
+    if is_emergency_priority(incident_data['type']):
+        priority_level = 2
+    elif is_high_priority(incident_data['type']):
+        priority_level = 1
+    
     
     map_img = None
     if GENERATE_MAPBOX_MAP and incident_data.get('lat') and incident_data.get('lon'):
@@ -547,7 +572,7 @@ def send_incident_notification(incident_data, is_update=False, previous_types=No
     elif not GENERATE_MAPBOX_MAP and DEBUG_MODE:
         print(f"{log_timestamp()} DEBUG: {'New CAD incident' if not is_update else 'CAD incident'}: {incident_data['cad']} - Map generation disabled\n")
     
-    send_pushover_notification(title, msg, map_img)
+    send_pushover_notification(title, msg, map_img, priority_level)
     
     if DEBUG_MODE:
         remarks_text = incident_data['remarks'] if incident_data['remarks'] else "No Remark Provided"
@@ -725,7 +750,7 @@ def process_incident(inc_raw):
 
 def main():
     print("Starting FHP Traffic Incident Notifier V2 - Developed by Ryan Watern\n")
-    print(f"Counties: {', '.join(FILTER_COUNTIES)}\nFiltered Incident Types: {', '.join(FILTER_INCIDENT_TYPES) if FILTER_INCIDENT_TYPES else 'None'}\nCheck interval: {CHECK_INTERVAL} seconds\nNew incident remark wait time: {NEW_INCIDENT_WAIT_TIME} seconds\nUpdate remark wait time: {UPDATE_WAIT_TIME} seconds\nGenerate Mapbox Map: {'ON' if GENERATE_MAPBOX_MAP else 'OFF'}\nAdd County to Location: {'ON' if ADD_COUNTY_TO_LOCATION else 'OFF'}\nDebug mode: {'ON' if DEBUG_MODE else 'OFF'}\n" + "-" * 133 + "\nPreloading existing incidents...")
+    print(f"Counties: {', '.join(FILTER_COUNTIES)}\nFiltered Incident Types: {', '.join(FILTER_INCIDENT_TYPES) if FILTER_INCIDENT_TYPES else 'None'}\nHigh Priority Incident Types: {', '.join(HIGH_PRIORITY_INCIDENT_TYPES) if HIGH_PRIORITY_INCIDENT_TYPES else 'None'}\nEmergency Priority Incident Types: {', '.join(EMERGENCY_PRIORITY_INCIDENT_TYPES) if EMERGENCY_PRIORITY_INCIDENT_TYPES else 'None'}\nCheck interval: {CHECK_INTERVAL} seconds\nNew incident remark wait time: {NEW_INCIDENT_WAIT_TIME} seconds\nUpdate remark wait time: {UPDATE_WAIT_TIME} seconds\nGenerate Mapbox Map: {'ON' if GENERATE_MAPBOX_MAP else 'OFF'}\nAdd County to Location: {'ON' if ADD_COUNTY_TO_LOCATION else 'OFF'}\nDebug mode: {'ON' if DEBUG_MODE else 'OFF'}\n" + "-" * 133 + "\nPreloading existing incidents...")
     print("")
     filtered_count = 0
     for incident in fetch_incidents():
