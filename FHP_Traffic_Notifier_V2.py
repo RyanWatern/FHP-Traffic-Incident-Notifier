@@ -73,6 +73,7 @@ def get_custom_pin(incident_type, previous_type=None, had_fatality=False):
                 return "Crash"
             elif "suicide" in original:
                 return "Caution"
+        return "Crash"
     
     if "fatality" in t and "possible" not in t:
         original = find_original_type(previous_type)
@@ -685,7 +686,7 @@ def process_incident(inc_raw):
                 break
     
     if is_filt and cad not in sent_incidents:
-        sent_incidents[cad]={"type":inc_type,"previous_types":[],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":""}
+        sent_incidents[cad]={"type":inc_type,"previous_types":[inc_type],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":""}
         return
 
     if cad in sent_incidents:
@@ -695,7 +696,6 @@ def process_incident(inc_raw):
             if not is_filt:
                 if"previous_locations"not in sent_incidents[cad]:sent_incidents[cad]["previous_locations"]=[]
                 if rec.get("location"):sent_incidents[cad]["previous_locations"].insert(0,rec["location"])
-            sent_incidents[cad]["location"]=data['location']
         
         if data['remarks']!=rec.get("remark",""):
             if"previous_remarks"not in sent_incidents[cad]:sent_incidents[cad]["previous_remarks"]=[]
