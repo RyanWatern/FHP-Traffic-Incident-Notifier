@@ -651,7 +651,8 @@ def process_pending_notifications():
             
             send_incident_notification(data,is_update=True,previous_types=prev_types,previous_locations=prev_locs,previous_remarks=prev_rems,stored_time=rec.get("reported"))
             
-            sent_incidents[cad]["previous_types"]=prev_types
+            if rec["type"] not in sent_incidents[cad]["previous_types"]:
+                sent_incidents[cad]["previous_types"].insert(0,rec["type"])
             sent_incidents[cad]["type"]=data['type']
             
             if data['location']!=rec.get("location",""):
@@ -686,7 +687,7 @@ def process_incident(inc_raw):
                 break
     
     if is_filt and cad not in sent_incidents:
-        sent_incidents[cad]={"type":inc_type,"previous_types":[inc_type],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":""}
+        sent_incidents[cad]={"type":inc_type,"previous_types":[],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":""}
         return
 
     if cad in sent_incidents:
