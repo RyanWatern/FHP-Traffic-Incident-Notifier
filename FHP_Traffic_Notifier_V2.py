@@ -598,7 +598,9 @@ def process_pending_notifications():
         data,is_upd,last_rem=pending["data"],pending["is_update"],pending["last_remarks"]
         pending_start_remark=pending.get("pending_start_remark","")
         
-        if data['remarks'] != pending_start_remark:
+        if data['remarks'] and not pending_start_remark:
+            to_notify.append(cad)
+        elif data['remarks'] != pending_start_remark:
             to_notify.append(cad)
         elif ct>=pending["wait_until"]:
             if DEBUG_MODE:
@@ -741,11 +743,15 @@ def process_incident(inc_raw):
                 
                 pending_incidents[cad]["data"] = data
             else:
-                pending_incidents[cad]={"data":data,"wait_until":datetime.now()+timedelta(seconds=NEW_INCIDENT_WAIT_TIME),"is_update":False,"last_remarks":"","pending_start_remark":data['remarks']or"","intermediate_remarks":[]}
-                if DEBUG_MODE:
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - New incident added to pending, waiting {NEW_INCIDENT_WAIT_TIME} seconds for remark\n")
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Raw location: {' '.join(inc_raw['location'].split())}\n")
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Formatted location: {data['location']}\n")
+                if data['remarks']:
+                    send_incident_notification(data, is_update=False)
+                    sent_incidents[cad]={"type":inc_type,"previous_types":[],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":data['remarks']}
+                else:
+                    pending_incidents[cad]={"data":data,"wait_until":datetime.now()+timedelta(seconds=NEW_INCIDENT_WAIT_TIME),"is_update":False,"last_remarks":"","pending_start_remark":"","intermediate_remarks":[]}
+                    if DEBUG_MODE:
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - New incident added to pending, waiting {NEW_INCIDENT_WAIT_TIME} seconds for remark\n")
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Raw location: {' '.join(inc_raw['location'].split())}\n")
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Formatted location: {data['location']}\n")
         else:
             sent_incidents[cad]={"type":inc_type,"previous_types":[],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":data['remarks']}
 
