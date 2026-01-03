@@ -601,10 +601,10 @@ def process_pending_notifications():
         if data['remarks'] and not pending_start_remark:
             if DEBUG_MODE:
                 if is_upd:
-                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark received before wait time expired\n")
+                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark provided before wait time expired\n")
                     print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark added\n")
                 else:
-                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark received before wait time expired\n")
+                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark provided before wait time expired\n")
                     print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark added: '{data['remarks']}'\n")
             to_notify.append(cad)
         elif data['remarks'] != pending_start_remark:
