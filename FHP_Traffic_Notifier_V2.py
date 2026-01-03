@@ -599,8 +599,22 @@ def process_pending_notifications():
         pending_start_remark=pending.get("pending_start_remark","")
         
         if data['remarks'] and not pending_start_remark:
+            if DEBUG_MODE:
+                if is_upd:
+                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark received before wait time expired\n")
+                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark added\n")
+                else:
+                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark received before wait time expired\n")
+                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark added: '{data['remarks']}'\n")
             to_notify.append(cad)
         elif data['remarks'] != pending_start_remark:
+            if DEBUG_MODE:
+                if is_upd:
+                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark changed before wait time expired\n")
+                    print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Updated remark added\n")
+                else:
+                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark changed before wait time expired\n")
+                    print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark added: '{data['remarks']}'\n")
             to_notify.append(cad)
         elif ct>=pending["wait_until"]:
             if DEBUG_MODE:
@@ -608,7 +622,7 @@ def process_pending_notifications():
                     if data['remarks'] != pending_start_remark:
                         print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, updated remark provided\n")
                     else:
-                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, no updated remark\n")
+                        print(f"{log_timestamp()} DEBUG: CAD incident: {cad} - Wait time expired for update, no updated remark provided\n")
                 else:
                     if data['remarks']:
                         print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Wait time expired, remark provided\n")
@@ -744,14 +758,20 @@ def process_incident(inc_raw):
                 pending_incidents[cad]["data"] = data
             else:
                 if data['remarks']:
+                    if DEBUG_MODE:
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Raw location: {' '.join(inc_raw['location'].split())}\n")
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Formatted location: {data['location']}\n")
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark provided immediately\n")
+                        print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Remark added: '{data['remarks']}'\n")
                     send_incident_notification(data, is_update=False)
                     sent_incidents[cad]={"type":inc_type,"previous_types":[],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":data['remarks']}
                 else:
-                    pending_incidents[cad]={"data":data,"wait_until":datetime.now()+timedelta(seconds=NEW_INCIDENT_WAIT_TIME),"is_update":False,"last_remarks":"","pending_start_remark":"","intermediate_remarks":[]}
                     if DEBUG_MODE:
                         print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - New incident added to pending, waiting {NEW_INCIDENT_WAIT_TIME} seconds for remark\n")
                         print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Raw location: {' '.join(inc_raw['location'].split())}\n")
                         print(f"{log_timestamp()} DEBUG: New CAD incident: {cad} - Formatted location: {data['location']}\n")
+                    
+                    pending_incidents[cad]={"data":data,"wait_until":datetime.now()+timedelta(seconds=NEW_INCIDENT_WAIT_TIME),"is_update":False,"last_remarks":"","pending_start_remark":"","intermediate_remarks":[]}
         else:
             sent_incidents[cad]={"type":inc_type,"previous_types":[],"location":data['location'],"previous_locations":[],"remark":data['remarks'],"previous_remarks":[],"reported":data['reported'],"last_notified_remark":data['remarks']}
 
@@ -808,3 +828,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
