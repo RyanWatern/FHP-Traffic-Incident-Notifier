@@ -712,7 +712,9 @@ def process_incident(inc_raw):
         if data['location']!=rec.get("location",""):
             if not is_filt:
                 if"previous_locations"not in sent_incidents[cad]:sent_incidents[cad]["previous_locations"]=[]
-                if rec.get("location"):sent_incidents[cad]["previous_locations"].insert(0,rec["location"])
+                if rec.get("location") and rec.get("location") not in sent_incidents[cad]["previous_locations"]:
+                    sent_incidents[cad]["previous_locations"].insert(0,rec["location"])
+            sent_incidents[cad]["location"]=data['location']
         
         if data['remarks']!=rec.get("remark",""):
             if"previous_remarks"not in sent_incidents[cad]:sent_incidents[cad]["previous_remarks"]=[]
